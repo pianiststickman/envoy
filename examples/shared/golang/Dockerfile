@@ -3,7 +3,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean \
     && echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' | tee /etc/apt/apt.conf.d/keep-cache
 
 
-FROM golang:1.21.0-bullseye@sha256:0ed263861f71db3c4fed4d900b621aca03a3b91b8bc5f1dd56584af191c89d68 as golang-base
+FROM golang:1.21.1-bullseye@sha256:873fce589a521deb54ec10f3deea6675135fed9ad91d62943a5c90d2fc059ba7 as golang-base
 
 
 FROM golang-base as golang-control-plane-builder
