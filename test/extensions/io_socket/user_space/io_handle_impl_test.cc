@@ -1059,6 +1059,32 @@ TEST_F(IoHandleImplTest, NotifyWritableAfterShutdownWrite) {
   io_handle_peer_->close();
 }
 
+// When a handle is closed, its peer gets signalled to drain any data it has left to write-flush.
+TEST_F(IoHandleImplTest, NotifyWritableAfterClose) {
+  io_handle_peer_->setWatermarks(128);
+
+  Buffer::OwnedImpl buf(std::string(256, 'a'));
+  io_handle_->write(buf);
+  EXPECT_FALSE(io_handle_peer_->canReceiveData());
+
+  auto schedulable_cb = new NiceMock<Event::MockSchedulableCallback>(&dispatcher_);
+  io_handle_->initializeFileEvent(
+      dispatcher_,
+      [this](uint32_t events) {
+        cb_.called(events);
+        return absl::OkStatus();
+      },
+      Event::FileTriggerType::Edge, Event::FileReadyType::Write);
+  // The peer's receive buffer is full, so no Write event is raised.
+  ASSERT_FALSE(schedulable_cb->enabled_);
+
+  // We suddenly close the peer handle, even though there is data left to send to it.
+  io_handle_peer_->close();
+  EXPECT_TRUE(schedulable_cb->enabled_);
+  EXPECT_CALL(cb_, called(Event::FileReadyType::Write));
+  schedulable_cb->invokeCallback();
+}
+
 TEST_F(IoHandleImplTest, ReturnValidInternalAddress) {
   const auto local_address = *io_handle_->localAddress();
   ASSERT_NE(nullptr, local_address);
